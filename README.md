@@ -22,4 +22,4 @@ Raw (JSONL) -> Curated (Parquet) -> Metrics (Parquet)
 
 Create raw data:
 ```bash
-python -m jobs.generate_raw
+python -m jobs.generate_raw YYYY-MM-DD
