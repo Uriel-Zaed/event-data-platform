@@ -35,4 +35,7 @@ def generate_raw(days: int = 3, events_per_day: int = 500_000) -> None:
         print(f"Wrote {events_per_day} events to {out_path}")
 
 if __name__ == "__main__":
+    start = time.time()
     generate_raw(days=3, events_per_day=200_000)
+    end = time.time()
+    print(f"Took {end - start} seconds")
