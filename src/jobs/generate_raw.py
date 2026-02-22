@@ -2,7 +2,8 @@ import os
 import json
 import random
 import time
-from datetime import datetime, timedelta
+import argparse
+from datetime import datetime
 
 from src.config.settings import RAW_DIR
 
@@ -14,28 +15,36 @@ def generate_event(day: str) -> dict:
         "user_id": random.randint(1, 200_000),
         "event_type": random.choice(EVENT_TYPES),
         "event_ts": time.time(),
-        "event_date": day,  # string YYYY-MM-DD
+        "event_date": day,
     }
 
-def generate_raw(days: int = 3, events_per_day: int = 500_000) -> None:
+def generate_raw(dt: str, events: int) -> str:
     os.makedirs(RAW_DIR, exist_ok=True)
 
-    start_day = datetime.now().date() - timedelta(days=days - 1)
+    day_dir = os.path.join(RAW_DIR, f"dt={dt}")
+    os.makedirs(day_dir, exist_ok=True)
 
-    for i in range(days):
-        day = (start_day + timedelta(days=i)).strftime("%Y-%m-%d")
-        day_dir = os.path.join(RAW_DIR, f"dt={day}")
-        os.makedirs(day_dir, exist_ok=True)
+    out_path = os.path.join(day_dir, "events.jsonl")
 
-        out_path = os.path.join(day_dir, "events.jsonl")
-        with open(out_path, "w", buffering=1024 * 1024) as f:
-            for _ in range(events_per_day):
-                f.write(json.dumps(generate_event(day)) + "\n")
+    t0 = time.time()
+    with open(out_path, "w", buffering=1024 * 1024) as f:
+        for _ in range(events):
+            f.write(json.dumps(generate_event(dt)) + "\n")
 
-        print(f"Wrote {events_per_day} events to {out_path}")
+    elapsed = time.time() - t0
+    print(f"[generate_raw] dt={dt} events={events:,} path={out_path} elapsed={elapsed:.2f}s")
+
+    return out_path
+
+
+def parse_args():
+    p = argparse.ArgumentParser(description="Generate raw JSONL events partitioned by dt.")
+    p.add_argument("--dt", type=str, required=False, help="Date partition YYYY-MM-DD (default: today)")
+    p.add_argument("--events", type=int, default=200_000, help="Events to generate (default: 200000)")
+    return p.parse_args()
+
 
 if __name__ == "__main__":
-    start = time.time()
-    generate_raw(days=3, events_per_day=200_000)
-    end = time.time()
-    print(f"Took {end - start} seconds")
+    args = parse_args()
+    dt = args.dt or datetime.now().strftime("%Y-%m-%d")
+    generate_raw(dt=dt, events=args.events)

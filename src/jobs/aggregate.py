@@ -1,13 +1,12 @@
 import os
-import sys
 import time
+import argparse
 from pyspark.sql import functions as F
 
 from src.config.settings import CURATED_DIR, METRICS_DIR, DEFAULT_SHUFFLE_PARTITIONS
 from src.utils.spark import get_spark
 
-
-def aggregate(dt: str) -> None:
+def aggregate(dt: str) -> dict:
     spark = get_spark(app_name=f"aggregate_{dt}", shuffle_partitions=DEFAULT_SHUFFLE_PARTITIONS)
 
     curated_path = os.path.join(CURATED_DIR, f"dt={dt}")
@@ -18,10 +17,8 @@ def aggregate(dt: str) -> None:
     os.makedirs(out_path, exist_ok=True)
 
     t0 = time.time()
-
     df = spark.read.parquet(curated_path)
 
-    # Core daily metrics (single-row dataframe)
     daily = (
         df.agg(
             F.count("*").alias("total_events"),
@@ -31,7 +28,6 @@ def aggregate(dt: str) -> None:
         .select("event_date", "total_events", "dau")
     )
 
-    # Event-type breakdown (3 rows)
     by_type = (
         df.groupBy("event_type")
           .agg(F.count("*").alias("events"))
@@ -39,24 +35,33 @@ def aggregate(dt: str) -> None:
           .select("event_date", "event_type", "events")
     )
 
-    # Write outputs
-    daily.write.mode("overwrite").parquet(os.path.join(out_path, "daily_metrics"))
-    by_type.write.mode("overwrite").parquet(os.path.join(out_path, "events_by_type"))
+    daily_out = os.path.join(out_path, "daily_metrics")
+    type_out = os.path.join(out_path, "events_by_type")
 
-    # Print for visibility
-    print("Daily metrics:")
+    daily.write.mode("overwrite").parquet(daily_out)
+    by_type.write.mode("overwrite").parquet(type_out)
+
+    elapsed = time.time() - t0
+
+    print("[aggregate] Daily metrics:")
     daily.show(truncate=False)
-
-    print("Events by type:")
+    print("[aggregate] Events by type:")
     by_type.orderBy(F.col("events").desc()).show(truncate=False)
-
-    print(f"[dt={dt}] wrote metrics to: {out_path}")
-    print(f"[dt={dt}] elapsed: {time.time() - t0:.2f}s")
+    print(f"[aggregate] dt={dt} wrote: {out_path} elapsed={elapsed:.2f}s")
 
     spark.stop()
 
+    return {
+        "dt": dt,
+        "elapsed_seconds": elapsed,
+        "metrics_path": out_path,
+    }
+
+def parse_args():
+    p = argparse.ArgumentParser(description="Aggregate curated Parquet -> daily metrics.")
+    p.add_argument("--dt", type=str, required=True, help="Date partition YYYY-MM-DD")
+    return p.parse_args()
 
 if __name__ == "__main__":
-    aggregate("2026-02-15")
-    aggregate("2026-02-16")
-    aggregate("2026-02-17")
+    args = parse_args()
+    aggregate(args.dt)
