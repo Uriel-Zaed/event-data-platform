@@ -5,6 +5,8 @@ BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 
 DATA_DIR = os.path.join(BASE_DIR, "data")
 
+LOG_DIR = os.path.join(DATA_DIR, "logs")
+
 RAW_DIR = os.path.join(DATA_DIR, "raw")
 CURATED_DIR = os.path.join(DATA_DIR, "curated")
 METRICS_DIR = os.path.join(DATA_DIR, "metrics")

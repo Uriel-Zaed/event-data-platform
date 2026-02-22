@@ -7,14 +7,20 @@ from src.config.settings import CURATED_DIR, METRICS_DIR, DEFAULT_SHUFFLE_PARTIT
 from src.utils.spark import get_spark
 from src.utils.audit import write_audit
 
+from src.utils.logging import get_logger
+from src.config.settings import DATA_DIR
+
 
 def _parquet_exists(path: str) -> bool:
     return os.path.isdir(path) and os.path.exists(os.path.join(path, "_SUCCESS"))
 
 
 def aggregate(dt: str, force: bool = False) -> dict:
+    logger = get_logger("aggregate", dt=dt, base_dir=DATA_DIR)
+
     curated_path = os.path.join(CURATED_DIR, f"dt={dt}")
     if not os.path.exists(curated_path):
+        logger.error(f"Curated path not found: {curated_path}")
         raise FileNotFoundError(f"Curated path not found: {curated_path}")
 
     out_path = os.path.join(METRICS_DIR, f"dt={dt}")
@@ -37,7 +43,7 @@ def aggregate(dt: str, force: bool = False) -> dict:
                 "events_by_type_out": type_out,
             },
         )
-        print(f"[aggregate] audit: {audit_path}")
+        logger.warning(f"[aggregate] audit: {audit_path}")
         return {"dt": dt, "status": "skipped", "metrics_path": out_path}
 
     os.makedirs(out_path, exist_ok=True)
@@ -70,11 +76,13 @@ def aggregate(dt: str, force: bool = False) -> dict:
         elapsed = time.time() - t0
 
         # Show output (nice for demo runs)
-        print("[aggregate] Daily metrics:")
+        logger.info("[aggregate] Daily metrics:")
         daily.show(truncate=False)
-        print("[aggregate] Events by type:")
+
+        logger.info("[aggregate] Events by type:")
         by_type.orderBy(F.col("events").desc()).show(truncate=False)
-        print(f"[aggregate] dt={dt} wrote: {out_path} elapsed={elapsed:.2f}s")
+
+        logger.info(f"[aggregate] dt={dt} wrote: {out_path} elapsed={elapsed:.2f}s")
 
         # Collect the single-row daily metrics to store in audit JSON
         daily_row = daily.collect()[0].asDict()
@@ -92,7 +100,7 @@ def aggregate(dt: str, force: bool = False) -> dict:
                 "daily_metrics": daily_row,  # includes total_events and dau
             },
         )
-        print(f"[aggregate] audit: {audit_path}")
+        logger.info(f"[aggregate] audit: {audit_path}")
 
         return {"dt": dt, "status": "success", "elapsed_seconds": elapsed, "metrics_path": out_path}
 
@@ -109,7 +117,7 @@ def aggregate(dt: str, force: bool = False) -> dict:
                 "metrics_path": out_path,
             },
         )
-        print(f"[aggregate] FAILED dt={dt}. audit: {audit_path}")
+        logger.exception(f"[aggregate] FAILED dt={dt}. audit: {audit_path}")
         raise
     finally:
         spark.stop()

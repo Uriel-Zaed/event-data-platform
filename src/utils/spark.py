@@ -8,5 +8,6 @@ def get_spark(app_name: str, shuffle_partitions: int = 10) -> SparkSession:
         .getOrCreate()
     )
     spark.conf.set("spark.sql.shuffle.partitions", str(shuffle_partitions))
-    spark.sparkContext.setLogLevel("WARN")
+    spark.sparkContext.setLogLevel("ERROR")
+    spark.conf.set("spark.sql.session.timeZone", "UTC")
     return spark
