@@ -1,25 +1,70 @@
-# Event Data Platform (Mini Batch Data Engineering Project)
+# Event Data Platform (Batch Pipeline with PySpark)
 
-A small production-style batch data platform that ingests raw JSONL user events, validates and deduplicates them using Spark, stores curated Parquet, and produces daily metrics.
+A production-style batch data pipeline that ingests raw event logs, performs validation and deduplication, and produces daily analytics metrics using PySpark.
 
-## Architecture
+This project demonstrates core Data Engineering concepts including partitioned storage, idempotent processing, audit logging, observability, and Spark performance tuning.
 
-Raw (JSONL) -> Curated (Parquet) -> Metrics (Parquet)
+---
 
-- **Raw**: `data/raw/dt=YYYY-MM-DD/events.jsonl`
-- **Curated**: `data/curated/dt=YYYY-MM-DD/` (Parquet)
-- **Metrics**: `data/metrics/dt=YYYY-MM-DD/`
-  - `daily_metrics/` (total_events, DAU)
-  - `events_by_type/` (counts per event_type)
+## 🚀 Features
 
-## Jobs
+- Partitioned raw → curated → metrics data layers
+- Schema validation and data quality filtering
+- Event deduplication using business keys
+- Daily aggregations (DAU, event counts)
+- Idempotent pipeline execution
+- Audit trail per job and pipeline run
+- Structured logging (console + file)
+- Configurable shuffle partitions
+- End-to-end orchestration via CLI
 
-- `jobs/generate_raw.py` - generate partitioned raw JSONL data
-- `jobs/ingest.py` - schema validation + filtering + dedup by event_id + write curated Parquet
-- `jobs/aggregate.py` - compute daily metrics from curated Parquet
+---
 
-## How to Run
+## 🏗️ Architecture
 
-Create raw data:
+Raw JSONL (dt partitioned)
+→
+Validation + Dedup (Spark)
+→
+Curated Parquet (dt partitioned)
+→
+Daily Metrics Aggregation
+→
+Analytics-ready Parquet
+
+
+
+
+### Data layers
+
+| Layer   | Purpose |
+|--------|--------|
+| raw     | Simulated event ingestion (JSONL) |
+| curated | Cleaned, validated, deduplicated events |
+| metrics | Daily analytics aggregates |
+| audit   | Job execution metadata |
+| logs    | Structured execution logs |
+
+
+
+---
+
+## ⚙️ Setup
+
+### 1. Create environment
+
 ```bash
-python -m jobs.generate_raw YYYY-MM-DD
+python -m venv .venv
+source .venv/bin/activate
+pip install pyspark
+```
+
+2. Run pipeline
+```bash
+python run_pipeline.py --dt 2026-02-17 --events 50000 --force
+```
+
+3. Re-run (idempotent)
+```bash
+python run_pipeline.py --dt 2026-02-17
+```
